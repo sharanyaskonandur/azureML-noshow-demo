@@ -1,0 +1,57 @@
+# =============================================================================
+# Azure ML Batch Deployment Configuration
+# Patient No-Show Risk Scoring
+# =============================================================================
+#
+# Deploy with:
+#   az ml batch-deployment create -f batch-deployment.yml
+# =============================================================================
+
+$schema: https://azuremlschemas.azureedge.net/latest/batchDeployment.schema.json
+
+name: noshow-batch-v1
+endpoint_name: noshow-batch-endpoint
+description: |
+  Batch deployment for daily no-show risk scoring.
+  Processes parquet files from Fabric Lakehouse and outputs scored predictions.
+
+# Model reference (update version as needed)
+model: azureml:noshow-logreg@latest
+
+# Compute configuration (CPU-based, cost-effective)
+compute: azureml:cpu-cluster
+resources:
+  instance_count: 1
+
+# Scoring script and environment
+code_configuration:
+  code: ./src
+  scoring_script: score_batch.py
+
+environment:
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest
+  conda_file: ./environment.yml
+
+# Batch processing settings
+mini_batch_size: 1000
+max_concurrency_per_instance: 2
+output_action: append_row
+output_file_name: predictions.csv
+
+# Retry and error handling
+retry_settings:
+  max_retries: 3
+  timeout: 300
+
+error_threshold: -1  # Continue on individual errors
+logging_level: info
+
+# Environment variables for scoring
+environment_variables:
+  PREDICTION_THRESHOLD: "0.7"
+  OUTPUT_FORMAT: "parquet"
+  INCLUDE_PROBABILITIES: "true"
+
+tags:
+  model_version: v1
+  framework: scikit-learn

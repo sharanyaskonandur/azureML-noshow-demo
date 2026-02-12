@@ -1,0 +1,25 @@
+# =============================================================================
+# Azure ML Batch Endpoint Configuration
+# Patient No-Show Risk Scoring - Daily Batch Processing
+# =============================================================================
+# 
+# Use Case: Score all upcoming appointments daily and write results
+# back to Fabric Lakehouse for Power BI consumption.
+#
+# Deploy with:
+#   az ml batch-endpoint create -f batch-endpoint.yml
+# =============================================================================
+
+$schema: https://azuremlschemas.azureedge.net/latest/batchEndpoint.schema.json
+
+name: noshow-batch-endpoint
+description: |
+  Daily batch scoring endpoint for patient no-show risk prediction.
+  Processes appointment data and generates risk scores for operational planning.
+auth_mode: aad_token
+
+tags:
+  project: patient-noshow
+  environment: production
+  team: bi-analytics
+  use_case: daily-risk-scoring

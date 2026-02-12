@@ -1,0 +1,71 @@
+{
+    "single_request": {
+        "patient_id": "P12345",
+        "appointment_id": "A00001",
+        "age": 55,
+        "scholarship": 0,
+        "hipertension": 1,
+        "diabetes": 1,
+        "alcoholism": 0,
+        "handcap": 0,
+        "sms_received": 1,
+        "lead_time_days": 21,
+        "day_of_week": 4,
+        "chronic_conditions": 2
+    },
+    "batch_request": {
+        "data": [
+            {
+                "patient_id": "P001",
+                "appointment_id": "A001",
+                "age": 25,
+                "scholarship": 1,
+                "hipertension": 0,
+                "diabetes": 0,
+                "alcoholism": 0,
+                "handcap": 0,
+                "sms_received": 0,
+                "lead_time_days": 7,
+                "day_of_week": 1,
+                "chronic_conditions": 0
+            },
+            {
+                "patient_id": "P002",
+                "appointment_id": "A002",
+                "age": 45,
+                "scholarship": 0,
+                "hipertension": 1,
+                "diabetes": 0,
+                "alcoholism": 0,
+                "handcap": 0,
+                "sms_received": 1,
+                "lead_time_days": 14,
+                "day_of_week": 2,
+                "chronic_conditions": 1
+            },
+            {
+                "patient_id": "P003",
+                "appointment_id": "A003",
+                "age": 70,
+                "scholarship": 0,
+                "hipertension": 1,
+                "diabetes": 1,
+                "alcoholism": 0,
+                "handcap": 1,
+                "lead_time_days": 30,
+                "day_of_week": 0,
+                "sms_received": 0,
+                "chronic_conditions": 2
+            }
+        ]
+    },
+    "expected_response_format": {
+        "no_show_risk": 0.4532,
+        "no_show_risk_pct": 45.3,
+        "risk_category": "Medium",
+        "risk_flag": 0,
+        "threshold_used": 0.7,
+        "scored_at": "2026-02-10T10:00:00Z",
+        "model_version": "v1"
+    }
+}

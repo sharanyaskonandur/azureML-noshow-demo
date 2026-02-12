@@ -1,0 +1,31 @@
+# =============================================================================
+# Azure ML Online Endpoint Configuration
+# Patient No-Show Risk Scoring - Real-Time API
+# =============================================================================
+#
+# Use Case: Real-time scoring for HiX integration and operational apps.
+# Provides low-latency predictions for individual appointments.
+#
+# Deploy with:
+#   az ml online-endpoint create -f online-endpoint.yml
+# =============================================================================
+
+$schema: https://azuremlschemas.azureedge.net/latest/managedOnlineEndpoint.schema.json
+
+name: noshow-online-endpoint
+description: |
+  Real-time scoring endpoint for patient no-show risk prediction.
+  Designed for integration with HiX and operational applications.
+
+auth_mode: key  # Options: key, aml_token
+# For production, consider using aml_token with managed identity
+
+tags:
+  project: patient-noshow
+  environment: production
+  team: bi-analytics
+  use_case: realtime-scoring
+
+# Traffic routing (for blue-green deployments)
+# traffic:
+#   blue: 100
