@@ -1,225 +1,246 @@
 # 🎯 Azure ML Platform Demo Script
-## Focus: From Fabric Development → Production with Azure ML
 
-**Duration:** 30 minutes  
-**Audience:** Thomas (Data Scientist), Reinier (Infra), Edwin (BI), Sophie (AI Lead)  
-**Key Message:** *"Azure ML bridges the gap between your Fabric notebooks and production-ready ML operations."*
+**Duration:** 20-30 minutes  
+**Key Message:** *"From code to production with governance, monitoring, and CI/CD"*
 
 ---
 
 ## Pre-Demo Checklist
 
-- [ ] Azure ML Studio open in browser
-- [ ] Model already registered (or ready to register live)
-- [ ] GitHub repo with workflow visible
+- [ ] Azure ML Studio open: https://ml.azure.com
+- [ ] GitHub repo open: Actions tab visible
+- [ ] Terminal ready for endpoint testing
 - [ ] This script open for reference
+
+### Azure Resources (Already Deployed)
+| Resource | Name |
+|----------|------|
+| Workspace | `AI-WORKSPACE-shark` |
+| Resource Group | `rg-ai-hub-citadel-dev-02` |
+| Model | `noshow-logreg` (v5+) |
+| Compute | `cpu-cluster` |
+| Batch Endpoint | `noshow-batch-endpoint` |
+| Online Endpoint | `noshow-online-endpoint-staging` |
 
 ---
 
 ## Demo Flow
 
-### Opening (2 min)
+### Part 1: Model Registry (5 min) ⭐
 
-**Say:**
-> "I know you've already built a working no-show prediction model in Fabric. Thomas, you mentioned the challenge is getting it into production sustainably. Today I'll show you how Azure ML solves that exact problem."
-
-**Show:** Architecture slide (if you have one) or draw quickly:
-```
-Fabric Notebook → Azure ML Registry → Endpoints → Power BI / HiX
-                         ↑
-                    GitHub CI/CD
-```
-
----
-
-### Part 1: Model Registry (8 min) ⭐ KEY SECTION
-
-**Open:** https://ml.azure.com → Models
-
-**Say:**
-> "This is where your model lives once it leaves the notebook. Every version is tracked."
-
-**Show & Click:**
-1. **Model list** → "Here's your no-show model"
-2. **Version history** → "Every training run creates a new version"
-3. **Model details** → Show:
-   - Artifacts (model.joblib, scaler.joblib)
-   - Tags (AUC score, build number)
-   - Description
-
-**Say:**
-> "When a regulator asks 'which model made this prediction on January 15th?', you can answer in 10 seconds."
-
-**Business call-out for Sophie:**
-> "This is your audit trail. NEN 7510 compliance loves this."
-
-#### Live Demo: Register a Model (Optional)
-```bash
-az ml model create --name noshow-logreg --path outputs/ --type custom_model
-```
-
----
-
-### Part 2: Batch Endpoint (7 min) ⭐ KEY SECTION
-
-**Say:**
-> "You already have batch inference running daily. Let's make it production-grade."
-
-**Open:** Azure ML → Endpoints → Batch endpoints
-
-**Show & Click:**
-1. **Create batch endpoint** (or show existing)
-2. **Deployment configuration:**
-   - Compute cluster (CPU)
-   - Scaling (1-4 nodes)
-   - Retry settings
-
-**Say:**
-> "Every morning at 6am, this pulls tomorrow's appointments from your Lakehouse, scores them, and writes predictions back. By the time planners arrive at 8am, the risk list is ready in Power BI."
-
-**Show the flow:**
-```
-Lakehouse (appointments) → Batch Endpoint → Lakehouse (predictions) → Power BI
-```
-
-**For Reinier (Infra):**
-> "This runs on managed compute. No VMs to patch. Auto-scales down to zero when not running."
-
----
-
-### Part 3: Online Endpoint (5 min)
-
-**Say:**
-> "For your HiX integration use case—where you want real-time scoring—here's the online endpoint."
-
-**Open:** Azure ML → Endpoints → Real-time endpoints
+**Open:** Azure ML Studio → Models → `noshow-logreg`
 
 **Show:**
-1. **Endpoint URL** → "This is a REST API"
-2. **Test tab** → Live test with sample JSON:
-```json
-{
-  "age": 25,
-  "scholarship": 1,
-  "hipertension": 0,
-  "diabetes": 0,
-  "alcoholism": 0,
-  "handcap": 0,
-  "sms_received": 0,
-  "lead_time_days": 21,
-  "day_of_week": 4,
-  "chronic_conditions": 0
-}
-```
+1. **Version history** - Every training creates a new version
+2. **Artifacts** - `model.joblib`, `scaler.joblib`, `metrics.json`
+3. **Metrics** - AUC-ROC score, training date
 
 **Say:**
-> "Response in under 100ms. This is how middleware calls the model when a patient books an appointment in HiX."
-
-**Show response:**
-```json
-{
-  "no_show_risk": 0.72,
-  "risk_category": "Very High",
-  "risk_flag": 1
-}
-```
+> "Every model version is tracked. When compliance asks 'which model made this prediction?', you answer in seconds."
 
 ---
 
-### Part 4: CI/CD with GitHub (5 min) ⭐ KEY SECTION
+### Part 2: Online Endpoint (8 min) ⭐
 
-**Open:** GitHub → Actions tab (or show workflow file)
+**Open:** Azure ML → Endpoints → Real-time → `noshow-online-endpoint-staging`
+
+**Show:**
+1. Endpoint URL (REST API)
+2. Deployment details
+3. Test tab
+
+**Live Test - High Risk Patient:**
+```json
+{"age": 15, "scholarship": 0, "hipertension": 0, "diabetes": 0, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 21, "day_of_week": 2, "chronic_conditions": 0}
+```
+
+**Expected Response:** ~65% risk (High)
+```json
+{"no_show_risk": 0.65, "risk_category": "High", "risk_flag": 1}
+```
+
+**Live Test - Low Risk Patient:**
+```json
+{"age": 65, "scholarship": 0, "hipertension": 1, "diabetes": 1, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 1, "day_of_week": 2, "chronic_conditions": 2}
+```
+
+**Expected Response:** ~25% risk (Low)
+```json
+{"no_show_risk": 0.25, "risk_category": "Low", "risk_flag": 0}
+```
 
 **Say:**
-> "You mentioned you're starting with GitHub. Here's how model deployment becomes part of your DevOps."
+> "Response in under 100ms. This is how your EHR system calls the model when a patient books."
 
-**Show the workflow:**
+**Key Factors:**
+- Long lead time → Higher risk
+- Young age → Higher risk
+- No chronic conditions → Higher risk
+- Short lead time + older + chronic conditions → Lower risk
+
+---
+
+### Part 3: Batch Endpoint (5 min)
+
+**Open:** Azure ML → Endpoints → Batch → `noshow-batch-endpoint`
+
+**Show:**
+1. Endpoint configuration
+2. Deployment (`noshow-batch-v1`)
+3. Compute cluster (`cpu-cluster` - scales 0-2)
+
+**Say:**
+> "Every morning, this scores tomorrow's appointments. By 8am, the risk list is ready in Power BI. Compute scales to zero when not running - you only pay for what you use."
+
+---
+
+### Part 4: CI/CD Pipeline (7 min) ⭐
+
+**Open:** GitHub → Actions tab
+
+**Show the workflow:** `mlops-ci-cd.yml`
+
 ```
-Push Code → Run Tests → Train Model → Register → Deploy Staging → [Approval] → Production
+Push to main
+     │
+     ▼
+┌─────────────────┐
+│  🧪 Tests       │  pytest (15 unit tests)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  🚂 Train       │  Submit to Azure ML
+└────────┬────────┘  Register model
+         │
+         ▼
+┌─────────────────┐
+│  🎭 Staging     │  Deploy to staging
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  🏭 Production  │  Deploy to production
+└─────────────────┘  (approval required)
 ```
 
 **Click through:**
-1. **Workflow runs** → Show green checkmarks
-2. **Protected environment** → "Production requires approval"
-3. **Approval gate** → "Sophie or Bas must click approve"
+1. Recent workflow runs → Green checkmarks
+2. Jobs breakdown → Test, Train, Deploy
+3. Environment protection → Production requires approval
 
 **Say:**
 > "Nothing reaches production without human approval. This is governance built into the pipeline."
 
-**For Reinier:**
-> "Same patterns you use for database deployments. Infrastructure as code."
-
 ---
 
-### Part 5: Monitoring (3 min)
+### Part 5: Code Walkthrough (Optional, 3 min)
 
-**Open:** Azure ML → Monitoring (or Model details → Monitoring tab)
-
-**Say:**
-> "You asked if this is sustainable. Here's how you know the model is still working."
+**Open:** VS Code / GitHub → `noshow_prediction/training/train.py`
 
 **Show:**
-1. **Data drift dashboard** → "Are inputs changing?"
-2. **Prediction distribution** → "Is the model behaving differently?"
-3. **Alert rules** → "Email/Teams when drift exceeds threshold"
+- Logistic Regression model
+- Feature engineering
+- Evaluation metrics (AUC-ROC, precision, recall)
 
 **Say:**
-> "You'll know the model needs retraining before the business feels the impact."
+> "Simple, interpretable model. Data scientists focus on improving the model, not managing infrastructure."
 
 ---
 
-### Closing (2 min)
+## Live Demo Commands
 
-**Say:**
-> "Let me summarize what Azure ML gives you:"
+### Test Endpoint via CLI
+```bash
+# Test staging endpoint
+az ml online-endpoint invoke \
+  --name noshow-online-endpoint-staging \
+  --request-file deployment/sample_requests.json \
+  --resource-group rg-ai-hub-citadel-dev-02 \
+  --workspace-name AI-WORKSPACE-shark
+```
 
-| Challenge You Have | Azure ML Solution |
-|-------------------|-------------------|
-| "How to productionize?" | Managed endpoints (batch + online) |
-| "Is it sustainable?" | Monitoring + drift detection |
+### Trigger CI/CD
+```bash
+# Make a small change and push
+git add .
+git commit -m "Trigger CI/CD demo"
+git push
+```
+
+Then show GitHub Actions running.
+
+---
+
+## Sample Test Payloads
+
+### High Risk Examples
+```json
+{"age": 18, "scholarship": 1, "hipertension": 0, "diabetes": 0, "alcoholism": 0, "handcap": 0, "sms_received": 0, "lead_time_days": 30, "day_of_week": 5, "chronic_conditions": 0}
+```
+
+```json
+{"age": 22, "scholarship": 0, "hipertension": 0, "diabetes": 0, "alcoholism": 1, "handcap": 0, "sms_received": 0, "lead_time_days": 14, "day_of_week": 1, "chronic_conditions": 0}
+```
+
+### Low Risk Examples
+```json
+{"age": 72, "scholarship": 0, "hipertension": 1, "diabetes": 1, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 1, "day_of_week": 2, "chronic_conditions": 2}
+```
+
+```json
+{"age": 55, "scholarship": 0, "hipertension": 1, "diabetes": 0, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 0, "day_of_week": 3, "chronic_conditions": 1}
+```
+
+---
+
+## Key Talking Points
+
+| Question | Answer |
+|----------|--------|
+| "What model?" | Logistic Regression - interpretable, fast, ~67% AUC |
+| "What features?" | Age, lead time, chronic conditions, SMS reminder |
+| "How to integrate?" | REST API for real-time, batch for daily scoring |
 | "Governance?" | Model registry + CI/CD approvals |
-| "Integration with HiX?" | REST API (online endpoint) |
-
-**Next steps:**
-> "For your April timeline, I'd suggest:
-> 1. Register your current model this week
-> 2. Deploy batch endpoint for 2 pilot clinics
-> 3. Measure impact over 6 weeks
-> 4. Add online endpoint for HiX when ready"
+| "Cost?" | ~€50-100/month (scales to zero) |
 
 ---
 
-## Objection Handling
+## Closing
 
-### "Can't we do this in Fabric?"
-> "Fabric is excellent for development. Azure ML adds production-grade deployment, versioning, and monitoring. They work together—Fabric for dev, Azure ML for ops."
+**Summary:**
+> "You now have:
+> - ✅ Model versioning & audit trail
+> - ✅ Real-time API for EHR integration
+> - ✅ Batch scoring for daily operations
+> - ✅ CI/CD with approval gates
+> - ✅ Self-hosted runner for security"
 
-### "This looks complex"
-> "The initial setup takes a few hours. After that, deploying a new model version is one command or one PR merge. Thomas can focus on improving the model, not managing infrastructure."
-
-### "Cost?"
-> "Batch endpoints scale to zero when not running. For daily scoring, you're looking at ~€50-100/month compute. Compare that to the €200K+ savings from reducing no-shows."
-
-### "Security for patient data?"
-> "Data stays in your Azure tenant. Use managed identities—no credentials in code. Private endpoints available if needed."
-
----
-
-## Key URLs to Have Open
-
-1. **Azure ML Studio:** https://ml.azure.com
-2. **GitHub repo:** (your repo with the workflow)
-3. **This script:** For reference
+**Next Steps:**
+1. Pilot with 2 clinics
+2. Measure no-show reduction over 6 weeks
+3. Expand to full deployment
 
 ---
 
-## After the Demo
+## Troubleshooting
 
-- [ ] Share Azure ML documentation links
-- [ ] Offer follow-up session for hands-on setup
-- [ ] Send pilot proposal for 2 clinics
-- [ ] Schedule next meeting for technical deep-dive with Thomas
+### Endpoint not responding
+```bash
+az ml online-endpoint show --name noshow-online-endpoint-staging \
+  --resource-group rg-ai-hub-citadel-dev-02 \
+  --workspace-name AI-WORKSPACE-shark
+```
 
----
+### Check deployment status
+```bash
+az ml online-deployment list --endpoint-name noshow-online-endpoint-staging \
+  --resource-group rg-ai-hub-citadel-dev-02 \
+  --workspace-name AI-WORKSPACE-shark
+```
 
-*Remember: They already understand the use case. Show them the platform.*
+### View recent jobs
+```bash
+az ml job list --resource-group rg-ai-hub-citadel-dev-02 \
+  --workspace-name AI-WORKSPACE-shark --max-results 5
+```
