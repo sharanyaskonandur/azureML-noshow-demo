@@ -89,13 +89,9 @@ az ml online-endpoint invoke \
 ```
 noshow-ml-demo/
 ├── noshow_prediction/           # ML code
-│   ├── training/
-│   │   ├── train.py             # Training logic
-│   │   ├── train_aml.py         # Azure ML entry script
-│   │   └── test_train.py        # Unit tests (15 tests)
-│   ├── scoring/
-│   │   └── score.py             # Scoring script
-│   └── conda_dependencies.yml   # Environment spec
+│   └── training/
+│       ├── train.py             # Training logic
+│       └── test_train.py        # Unit tests (15 tests)
 │
 ├── ml_service/                  # Azure ML pipeline
 │   └── pipelines/
@@ -105,8 +101,8 @@ noshow-ml-demo/
 │   └── mlops-ci-cd.yml          # GitHub Actions workflow
 │
 ├── deployment/                  # Endpoint configs
-│   ├── online/                  # Real-time endpoint
-│   ├── batch/                   # Batch endpoint
+│   ├── online/                  # Real-time scoring scripts
+│   ├── batch/                   # Batch scoring scripts
 │   └── sample_requests.json     # Test payloads
 │
 ├── data/                        # Training data
