@@ -70,8 +70,10 @@ def get_environment(ml_client: MLClient, env_name: str) -> Environment:
         print(f"Using existing environment: {env_name}")
     except Exception:
         print(f"Creating environment: {env_name}")
+        # Go up 3 levels: pipelines -> ml_service -> repo_root
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         conda_file = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
+            repo_root,
             "noshow_prediction",
             "conda_dependencies.yml"
         )
