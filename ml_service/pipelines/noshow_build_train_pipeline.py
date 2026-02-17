@@ -42,24 +42,20 @@ def get_or_create_compute(ml_client: MLClient, compute_name: str) -> str:
 
 
 def get_environment(ml_client: MLClient, env_name: str) -> str:
-    """Get or create training environment."""
-    try:
-        env = ml_client.environments.get(env_name, label="latest")
-        print(f"Using existing environment: {env_name}")
-        return f"{env.name}:{env.version}"
-    except Exception:
-        print(f"Creating environment: {env_name}")
-        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        conda_file = os.path.join(repo_root, "noshow_prediction", "conda_dependencies.yml")
-        
-        env = Environment(
-            name=env_name,
-            image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest",
-            conda_file=conda_file,
-            description="Environment for no-show prediction training"
-        )
-        env = ml_client.environments.create_or_update(env)
-        return f"{env.name}:{env.version}"
+    """Always create new environment version to pick up conda changes."""
+    print(f"Creating/updating environment: {env_name}")
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    conda_file = os.path.join(repo_root, "noshow_prediction", "conda_dependencies.yml")
+    
+    env = Environment(
+        name=env_name,
+        image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest",
+        conda_file=conda_file,
+        description="Environment for no-show prediction training"
+    )
+    env = ml_client.environments.create_or_update(env)
+    print(f"Using environment: {env.name}:{env.version}")
+    return f"{env.name}:{env.version}"
 
 
 def main():

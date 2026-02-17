@@ -84,7 +84,7 @@ jobs:
         run: |
           python ml_service/pipelines/noshow_build_train_pipeline.py \
             --compute-name cpu-cluster \
-            --env-name noshow-training-env \
+            --env-name noshow-training-env-v2 \
             --dataset-name noshow-appointments-kaggle
         env:
           SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
