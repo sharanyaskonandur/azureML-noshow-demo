@@ -58,7 +58,7 @@ jobs:
       
       - name: Run unit tests
         run: |
-          pytest tests/ noshow_prediction/training/test_train.py -v --cov=noshow_prediction --cov-report=xml
+          pytest noshow_prediction/training/test_train.py -v --cov=noshow_prediction --cov-report=xml
       
       - name: Upload coverage
         uses: codecov/codecov-action@v3

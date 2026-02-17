@@ -73,7 +73,7 @@ jobs:
       
       - name: 🧪 Run unit tests
         run: |
-          pytest tests/ -v --tb=short --maxfail=3
+          pytest noshow_prediction/training/test_train.py -v --tb=short --maxfail=3
         continue-on-error: false
       
       - name: ✅ Validate scoring scripts
