@@ -1,21 +1,96 @@
-# 🏥 Patient No-Show Prediction Demo
+# 🏥 Patient No-Show Prediction - MLOps Demo
 
-## Deep Technical Demo with Business Focus
+## MLOpsPython Template Structure
 
 **Headline:** *"Train in Fabric. Govern & scale in Azure ML. Operationalize into HiX/BI with monitoring and approvals."*
+
+This repository follows the [MLOpsPython](https://github.com/microsoft/MLOpsPython) template structure for enterprise-grade ML operations.
 
 ---
 
 ## 📋 Table of Contents
 
-1. [Executive Summary](#executive-summary)
-2. [Business Outcomes](#business-outcomes)
-3. [Architecture Overview](#architecture-overview)
-4. [Prerequisites](#prerequisites)
-5. [Demo Setup Guide](#demo-setup-guide)
-6. [Demo Script (30-40 minutes)](#demo-script)
-7. [Key Talking Points](#key-talking-points)
-8. [FAQ & Objection Handling](#faq--objection-handling)
+1. [Project Structure](#project-structure)
+2. [Quick Start](#quick-start)
+3. [Training](#training)
+4. [Deployment](#deployment)
+5. [CI/CD Pipelines](#cicd-pipelines)
+6. [Architecture Overview](#architecture-overview)
+7. [Business Outcomes](#business-outcomes)
+
+---
+
+## Project Structure
+
+```
+noshow-ml-demo/
+├── noshow_prediction/          # ML Project (MLOpsPython structure)
+│   ├── training/
+│   │   ├── train.py            # Platform-agnostic training logic
+│   │   ├── train_aml.py        # Azure ML entry script
+│   │   └── test_train.py       # Unit tests for training
+│   ├── scoring/
+│   │   ├── score.py            # Real-time scoring script
+│   │   └── deployment_config_aks.yml
+│   ├── evaluate/
+│   │   └── evaluate_model.py   # Model comparison/evaluation
+│   ├── conda_dependencies.yml  # Training environment
+│   └── parameters.json         # Training parameters
+│
+├── ml_service/                 # ML Pipeline Definitions
+│   ├── pipelines/
+│   │   └── noshow_build_train_pipeline.py
+│   └── util/
+│       ├── env_variables.py
+│       └── smoke_test_scoring_service.py
+│
+├── .pipelines/                 # Azure DevOps CI/CD
+│   ├── noshow-ci.yml           # Continuous Integration
+│   ├── noshow-cd.yml           # Continuous Deployment
+│   ├── noshow-variables-template.yml
+│   └── code-quality-template.yml
+│
+├── .github/workflows/          # GitHub Actions CI/CD
+│   └── mlops-ci-cd.yml
+│
+├── deployment/                 # Deployment configurations
+│   ├── online/                 # Real-time endpoint
+│   └── batch/                  # Batch endpoint
+│
+├── data/                       # Training data
+├── notebooks/                  # Experimentation notebooks
+├── outputs/                    # Model artifacts
+└── tests/                      # Additional tests
+```
+
+---
+
+## Quick Start
+
+### Local Training
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Train model locally
+python noshow_prediction/training/train.py \
+    --data-path data/KaggleV2-May-2016.csv \
+    --output-dir outputs/
+
+# Run tests
+pytest noshow_prediction/training/test_train.py -v
+```
+
+### Azure ML Training
+```bash
+# Set environment variables
+export SUBSCRIPTION_ID="your-subscription"
+export RESOURCE_GROUP="your-rg"
+export WORKSPACE_NAME="your-workspace"
+
+# Run training pipeline
+python ml_service/pipelines/noshow_build_train_pipeline.py
+```
 
 ---
 
@@ -27,7 +102,7 @@ This demo shows how to move from ML experimentation to production-ready deployme
 |-----------|---------|
 | **Microsoft Fabric** | Data platform, notebooks, Power BI |
 | **Azure ML** | Model registry, endpoints, monitoring |
-| **GitHub Actions** | CI/CD with approvals |
+| **GitHub Actions / Azure DevOps** | CI/CD with approvals |
 
 **Customer Pain Points Addressed:**
 - ❌ "We're stuck in experimentation mode"
@@ -391,5 +466,6 @@ noshow-ml-demo/
 ---
 
 *Demo package created for deep technical demonstration with business focus.*
-#   T r i g g e r   C I  
+#   T r i g g e r   C I 
+ 
  

@@ -1,0 +1,126 @@
+# =============================================================================
+# No-Show Prediction - CI Pipeline (Continuous Integration)
+# =============================================================================
+# This pipeline runs on every PR and push to main branch.
+# It performs code quality checks, unit tests, and builds the training pipeline.
+#
+# Following MLOpsPython template: https://github.com/microsoft/MLOpsPython
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - noshow_prediction/*
+      - ml_service/*
+      - tests/*
+      - .pipelines/*
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - noshow_prediction/*
+      - ml_service/*
+      - tests/*
+
+variables:
+  - template: noshow-variables-template.yml
+
+pool:
+  vmImage: $(VM_IMAGE)
+
+stages:
+  # =============================================================================
+  # Stage 1: Code Quality & Tests
+  # =============================================================================
+  - stage: CodeQuality
+    displayName: 'Code Quality & Tests'
+    jobs:
+      - job: LintAndTest
+        displayName: 'Lint and Test'
+        steps:
+          - template: code-quality-template.yml
+            parameters:
+              pythonVersion: $(PYTHON_VERSION)
+
+  # =============================================================================
+  # Stage 2: Build ML Pipeline
+  # =============================================================================
+  - stage: BuildPipeline
+    displayName: 'Build ML Pipeline'
+    dependsOn: CodeQuality
+    condition: succeeded()
+    jobs:
+      - job: BuildTrainingPipeline
+        displayName: 'Build Training Pipeline'
+        steps:
+          - task: UsePythonVersion@0
+            displayName: 'Use Python $(PYTHON_VERSION)'
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - task: AzureCLI@2
+            displayName: 'Validate Azure ML Pipeline'
+            inputs:
+              azureSubscription: 'Azure ML Connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Validate pipeline configuration
+                python -c "
+                from ml_service.pipelines.noshow_build_train_pipeline import noshow_training_pipeline
+                print('Pipeline definition is valid')
+                "
+            env:
+              SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+              RESOURCE_GROUP: $(RESOURCE_GROUP)
+              WORKSPACE_NAME: $(WORKSPACE_NAME)
+
+  # =============================================================================
+  # Stage 3: Train Model (on main branch only)
+  # =============================================================================
+  - stage: TrainModel
+    displayName: 'Train Model'
+    dependsOn: BuildPipeline
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: RunTrainingPipeline
+        displayName: 'Run Training Pipeline'
+        steps:
+          - task: UsePythonVersion@0
+            displayName: 'Use Python $(PYTHON_VERSION)'
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - task: AzureCLI@2
+            displayName: 'Submit Training Pipeline'
+            inputs:
+              azureSubscription: 'Azure ML Connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                python ml_service/pipelines/noshow_build_train_pipeline.py \
+                  --compute-name $(COMPUTE_NAME) \
+                  --env-name $(ENVIRONMENT_NAME) \
+                  --dataset-name $(DATASET_NAME)
+            env:
+              SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+              RESOURCE_GROUP: $(RESOURCE_GROUP)
+              WORKSPACE_NAME: $(WORKSPACE_NAME)

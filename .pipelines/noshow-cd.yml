@@ -1,0 +1,210 @@
+# =============================================================================
+# No-Show Prediction - CD Pipeline (Continuous Deployment)
+# =============================================================================
+# This pipeline deploys the trained model to staging and production endpoints.
+# Requires manual approval before production deployment.
+#
+# Following MLOpsPython template: https://github.com/microsoft/MLOpsPython
+# =============================================================================
+
+trigger: none
+
+pr: none
+
+# Can be triggered manually or after CI pipeline
+resources:
+  pipelines:
+    - pipeline: ci-pipeline
+      source: 'noshow-ci'
+      trigger:
+        branches:
+          include:
+            - main
+
+variables:
+  - template: noshow-variables-template.yml
+
+pool:
+  vmImage: $(VM_IMAGE)
+
+stages:
+  # =============================================================================
+  # Stage 1: Deploy to Staging
+  # =============================================================================
+  - stage: DeployStaging
+    displayName: 'Deploy to Staging'
+    jobs:
+      - deployment: DeployStagingEndpoint
+        displayName: 'Deploy Staging Endpoint'
+        environment: 'noshow-staging'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: UsePythonVersion@0
+                  displayName: 'Use Python $(PYTHON_VERSION)'
+                  inputs:
+                    versionSpec: $(PYTHON_VERSION)
+
+                - script: |
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                  displayName: 'Install dependencies'
+
+                - task: AzureCLI@2
+                  displayName: 'Deploy to Staging Endpoint'
+                  inputs:
+                    azureSubscription: 'Azure ML Connection'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az ml online-endpoint create \
+                        --name $(ONLINE_ENDPOINT_NAME)-staging \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --workspace-name $(WORKSPACE_NAME) \
+                        --file deployment/online/online-endpoint.yml \
+                        --set name=$(ONLINE_ENDPOINT_NAME)-staging || true
+                      
+                      az ml online-deployment create \
+                        --name blue \
+                        --endpoint-name $(ONLINE_ENDPOINT_NAME)-staging \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --workspace-name $(WORKSPACE_NAME) \
+                        --file deployment/online/online-deployment.yml \
+                        --set model=azureml:$(MODEL_NAME):latest
+                  env:
+                    SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+                    RESOURCE_GROUP: $(RESOURCE_GROUP)
+                    WORKSPACE_NAME: $(WORKSPACE_NAME)
+
+  # =============================================================================
+  # Stage 2: Smoke Tests
+  # =============================================================================
+  - stage: SmokeTests
+    displayName: 'Smoke Tests'
+    dependsOn: DeployStaging
+    jobs:
+      - job: RunSmokeTests
+        displayName: 'Run Smoke Tests'
+        steps:
+          - task: UsePythonVersion@0
+            displayName: 'Use Python $(PYTHON_VERSION)'
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - task: AzureCLI@2
+            displayName: 'Run Smoke Tests'
+            inputs:
+              azureSubscription: 'Azure ML Connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                python ml_service/util/smoke_test_scoring_service.py \
+                  --endpoint-name $(ONLINE_ENDPOINT_NAME)-staging
+            env:
+              SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+              RESOURCE_GROUP: $(RESOURCE_GROUP)
+              WORKSPACE_NAME: $(WORKSPACE_NAME)
+
+  # =============================================================================
+  # Stage 3: Deploy to Production (with approval)
+  # =============================================================================
+  - stage: DeployProduction
+    displayName: 'Deploy to Production'
+    dependsOn: SmokeTests
+    condition: succeeded()
+    jobs:
+      - deployment: DeployProductionEndpoint
+        displayName: 'Deploy Production Endpoint'
+        environment: 'noshow-production'  # Configure approval in Azure DevOps
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: UsePythonVersion@0
+                  displayName: 'Use Python $(PYTHON_VERSION)'
+                  inputs:
+                    versionSpec: $(PYTHON_VERSION)
+
+                - script: |
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                  displayName: 'Install dependencies'
+
+                - task: AzureCLI@2
+                  displayName: 'Deploy to Production Endpoint'
+                  inputs:
+                    azureSubscription: 'Azure ML Connection'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      # Create or update production endpoint
+                      az ml online-endpoint create \
+                        --name $(ONLINE_ENDPOINT_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --workspace-name $(WORKSPACE_NAME) \
+                        --file deployment/online/online-endpoint.yml || true
+                      
+                      # Blue/Green deployment - create new deployment
+                      DEPLOYMENT_NAME="blue-$(Build.BuildId)"
+                      az ml online-deployment create \
+                        --name $DEPLOYMENT_NAME \
+                        --endpoint-name $(ONLINE_ENDPOINT_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --workspace-name $(WORKSPACE_NAME) \
+                        --file deployment/online/online-deployment.yml \
+                        --set model=azureml:$(MODEL_NAME):latest
+                      
+                      # Shift traffic to new deployment
+                      az ml online-endpoint update \
+                        --name $(ONLINE_ENDPOINT_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --workspace-name $(WORKSPACE_NAME) \
+                        --traffic "$DEPLOYMENT_NAME=100"
+                  env:
+                    SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+                    RESOURCE_GROUP: $(RESOURCE_GROUP)
+                    WORKSPACE_NAME: $(WORKSPACE_NAME)
+
+  # =============================================================================
+  # Stage 4: Production Smoke Tests
+  # =============================================================================
+  - stage: ProductionSmokeTests
+    displayName: 'Production Smoke Tests'
+    dependsOn: DeployProduction
+    jobs:
+      - job: RunProductionSmokeTests
+        displayName: 'Run Production Smoke Tests'
+        steps:
+          - task: UsePythonVersion@0
+            displayName: 'Use Python $(PYTHON_VERSION)'
+            inputs:
+              versionSpec: $(PYTHON_VERSION)
+
+          - script: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+            displayName: 'Install dependencies'
+
+          - task: AzureCLI@2
+            displayName: 'Run Production Smoke Tests'
+            inputs:
+              azureSubscription: 'Azure ML Connection'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                python ml_service/util/smoke_test_scoring_service.py \
+                  --endpoint-name $(ONLINE_ENDPOINT_NAME)
+            env:
+              SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+              RESOURCE_GROUP: $(RESOURCE_GROUP)
+              WORKSPACE_NAME: $(WORKSPACE_NAME)
