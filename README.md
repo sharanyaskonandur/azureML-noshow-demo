@@ -1,471 +1,206 @@
 # 🏥 Patient No-Show Prediction - MLOps Demo
 
-## MLOpsPython Template Structure
+Predict patient appointment no-shows using machine learning, deployed with enterprise MLOps practices.
 
-**Headline:** *"Train in Fabric. Govern & scale in Azure ML. Operationalize into HiX/BI with monitoring and approvals."*
+## 🎯 What This Demo Shows
 
-This repository follows the [MLOpsPython](https://github.com/microsoft/MLOpsPython) template structure for enterprise-grade ML operations.
-
----
-
-## 📋 Table of Contents
-
-1. [Project Structure](#project-structure)
-2. [Quick Start](#quick-start)
-3. [Training](#training)
-4. [Deployment](#deployment)
-5. [CI/CD Pipelines](#cicd-pipelines)
-6. [Architecture Overview](#architecture-overview)
-7. [Business Outcomes](#business-outcomes)
+| Capability | Implementation |
+|------------|----------------|
+| **Model Training** | Logistic Regression on Kaggle healthcare data |
+| **Model Registry** | Azure ML Model Registry with versioning |
+| **CI/CD Pipeline** | GitHub Actions with self-hosted runner |
+| **Deployment** | Online endpoints (staging → production) |
+| **Batch Scoring** | Daily batch predictions for next-day appointments |
 
 ---
 
-## Project Structure
+## 📊 Model Overview
 
-```
-noshow-ml-demo/
-├── noshow_prediction/          # ML Project (MLOpsPython structure)
-│   ├── training/
-│   │   ├── train.py            # Platform-agnostic training logic
-│   │   ├── train_aml.py        # Azure ML entry script
-│   │   └── test_train.py       # Unit tests for training
-│   ├── scoring/
-│   │   ├── score.py            # Real-time scoring script
-│   │   └── deployment_config_aks.yml
-│   ├── evaluate/
-│   │   └── evaluate_model.py   # Model comparison/evaluation
-│   ├── conda_dependencies.yml  # Training environment
-│   └── parameters.json         # Training parameters
-│
-├── ml_service/                 # ML Pipeline Definitions
-│   ├── pipelines/
-│   │   └── noshow_build_train_pipeline.py
-│   └── util/
-│       ├── env_variables.py
-│       └── smoke_test_scoring_service.py
-│
-├── .pipelines/                 # Azure DevOps CI/CD
-│   ├── noshow-ci.yml           # Continuous Integration
-│   ├── noshow-cd.yml           # Continuous Deployment
-│   ├── noshow-variables-template.yml
-│   └── code-quality-template.yml
-│
-├── .github/workflows/          # GitHub Actions CI/CD
-│   └── mlops-ci-cd.yml
-│
-├── deployment/                 # Deployment configurations
-│   ├── online/                 # Real-time endpoint
-│   └── batch/                  # Batch endpoint
-│
-├── data/                       # Training data
-├── notebooks/                  # Experimentation notebooks
-├── outputs/                    # Model artifacts
-└── tests/                      # Additional tests
-```
+**Algorithm:** Logistic Regression (classification)  
+**Target:** No-show probability (0-100%)  
+**AUC-ROC:** ~0.67
+
+### Features Used
+| Feature | Description |
+|---------|-------------|
+| `age` | Patient age (0-115) |
+| `scholarship` | Bolsa Família enrollment (0/1) |
+| `hipertension` | Has hypertension (0/1) |
+| `diabetes` | Has diabetes (0/1) |
+| `alcoholism` | Has alcoholism (0/1) |
+| `handcap` | Disability level (0-4) |
+| `sms_received` | Got SMS reminder (0/1) |
+| `lead_time_days` | Days between scheduling and appointment |
+| `day_of_week` | Appointment day (0=Mon, 6=Sun) |
+| `chronic_conditions` | Sum of chronic conditions |
+
+### Risk Categories
+| Risk Level | Probability | Action |
+|------------|------------|--------|
+| **Low** | < 30% | Standard reminder |
+| **Medium** | 30-50% | Extra reminder |
+| **High** | > 50% | Call patient, consider overbooking |
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Local Training
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Train model locally
-python noshow_prediction/training/train.py \
-    --data-path data/KaggleV2-May-2016.csv \
-    --output-dir outputs/
+# Train model
+cd noshow_prediction/training
+python train.py --data-path ../../data/KaggleV2-May-2016.csv --output-dir ../../outputs
 
 # Run tests
-pytest noshow_prediction/training/test_train.py -v
+pytest test_train.py -v
 ```
 
-### Azure ML Training
+### Test the Endpoint
 ```bash
-# Set environment variables
-export SUBSCRIPTION_ID="your-subscription"
-export RESOURCE_GROUP="your-rg"
-export WORKSPACE_NAME="your-workspace"
-
-# Run training pipeline
-python ml_service/pipelines/noshow_build_train_pipeline.py
+# Azure CLI
+az ml online-endpoint invoke \
+  --name noshow-online-endpoint-staging \
+  --request-file deployment/sample_requests.json \
+  --resource-group rg-ai-hub-citadel-dev-02 \
+  --workspace-name AI-WORKSPACE-shark
 ```
 
----
+### Sample Predictions
 
-## Executive Summary
-
-This demo shows how to move from ML experimentation to production-ready deployment using:
-
-| Component | Purpose |
-|-----------|---------|
-| **Microsoft Fabric** | Data platform, notebooks, Power BI |
-| **Azure ML** | Model registry, endpoints, monitoring |
-| **GitHub Actions / Azure DevOps** | CI/CD with approvals |
-
-**Customer Pain Points Addressed:**
-- ❌ "We're stuck in experimentation mode"
-- ❌ "How do we productionize sustainably?"
-- ❌ "We need governance and audit trails"
-
----
-
-## Business Outcomes
-
-### Use Case 1: Patient No-Show Prediction
-| Metric | Target | Impact |
-|--------|--------|--------|
-| AUC-ROC | ≥ 0.75 | Reliable risk scoring |
-| No-show reduction | 10-20% | €500K+ annual savings |
-| Daily processing | By 07:30 | Operational readiness |
-
-### Use Case 2: Multi-Condition Risk (Future)
-- Identify complex patients earlier
-- Better care coordination
-- Reduced readmissions
-
----
-
-## Architecture Overview
-
+**High Risk Patient** (young, long lead time):
+```json
+{"age": 15, "scholarship": 0, "hipertension": 0, "diabetes": 0, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 21, "day_of_week": 2, "chronic_conditions": 0}
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     DATA LAYER (Microsoft Fabric)                │
-├─────────────────────────────────────────────────────────────────┤
-│  Lakehouse          │  Notebooks      │  Power BI               │
-│  ├── Bronze (raw)   │  ├── Training   │  ├── Risk Dashboard     │
-│  ├── Silver (clean) │  └── EDA        │  └── Operational Views  │
-│  └── Gold (curated) │                 │                         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     ML PLATFORM (Azure ML)                       │
-├─────────────────────────────────────────────────────────────────┤
-│  Model Registry     │  Endpoints      │  Monitoring             │
-│  ├── Versioning     │  ├── Batch      │  ├── Data Drift         │
-│  ├── Lineage        │  │   (daily)    │  ├── Model Performance  │
-│  └── Tags           │  └── Online     │  └── Alerts             │
-│                     │      (real-time)│                         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     CI/CD (GitHub Actions)                       │
-├─────────────────────────────────────────────────────────────────┤
-│  Test → Train → Register → Deploy Staging → [Approval] → Prod   │
-└─────────────────────────────────────────────────────────────────┘
+→ Result: ~65% no-show risk (High)
+
+**Low Risk Patient** (older, short lead time, chronic conditions):
+```json
+{"age": 65, "scholarship": 0, "hipertension": 1, "diabetes": 1, "alcoholism": 0, "handcap": 0, "sms_received": 1, "lead_time_days": 1, "day_of_week": 2, "chronic_conditions": 2}
 ```
+→ Result: ~25% no-show risk (Low)
 
 ---
 
-## Prerequisites
-
-### Azure Resources
-- [ ] Azure ML Workspace (West Europe recommended for NL healthcare)
-- [ ] CPU Compute Cluster (`STANDARD_DS3_v2`, 0-2 nodes)
-- [ ] Storage Account with Lakehouse access
-
-### Fabric Resources
-- [ ] Fabric Workspace with Lakehouse
-- [ ] Power BI dataset permissions
-- [ ] F64 capacity (or higher)
-
-### GitHub
-- [ ] Repository with code
-- [ ] OIDC/Service Principal for Azure
-- [ ] Protected environments (staging, production)
-
-### Local Development
-- [ ] Python 3.10+
-- [ ] VS Code with Python extension
-- [ ] Azure CLI with ML extension
-
----
-
-## Demo Setup Guide
-
-### Step 1: Generate Synthetic Data
-
-```bash
-cd noshow-ml-demo/data
-python synthetic_data_generator.py
-```
-
-This creates:
-- `patients_silver.parquet` (5,000 patients)
-- `appointments_silver.parquet` (25,000 appointments)
-- `multi_condition_risk.parquet` (future use case)
-
-### Step 2: Configure Azure ML Connection
-
-Create a `.env` file:
-
-```env
-AZURE_SUBSCRIPTION_ID=your-subscription-id
-AZURE_RESOURCE_GROUP=your-resource-group
-AZURE_ML_WORKSPACE=your-workspace-name
-```
-
-### Step 3: Run Training Notebook Locally
-
-1. Open `notebooks/01_train_noshow_model.ipynb`
-2. Run all cells
-3. Verify model artifacts in `outputs/`
-
-### Step 4: Deploy to Azure ML (Optional for Demo)
-
-```bash
-# Login to Azure
-az login
-
-# Install ML extension
-az extension add -n ml
-
-# Create online endpoint
-az ml online-endpoint create -f deployment/online/online-endpoint.yml
-
-# Create deployment
-az ml online-deployment create -f deployment/online/online-deployment.yml --all-traffic
-```
-
----
-
-## Demo Script
-
-### Opening (0-3 min)
-
-**Show:** Title slide with outcomes
-
-**Say:**
-> "Today I'll show you how to move from ML experimentation—where you already are with Fabric notebooks—to governed production deployment. We'll address your two use cases: no-show prediction and multi-condition risk."
-
-**Key points:**
-- ✅ Reduce no-shows → more throughput, lower costs
-- ✅ Governed deployment → auditors happy
-- ✅ Monitoring → sustainable long-term
-
----
-
-### Part 1: Train in Fabric Notebook (3-10 min)
-
-**Show:** Open `01_train_noshow_model.ipynb`
-
-**Say:**
-> "This notebook runs on CPU—no GPU needed. It's the same environment you're using today with F64."
-
-**Run cells through:**
-1. Data loading → "This comes from your Lakehouse"
-2. EDA visualizations → "Previous no-shows is the strongest predictor"
-3. Model training → "Under 1 second on CPU"
-4. Metrics → "AUC above 0.75 is our target"
-
-**Business call-out:**
-> "Even with CPU, we hit acceptable accuracy for daily risk lists. We'll monitor and iterate."
-
----
-
-### Part 2: Register Model to Azure ML (10-15 min)
-
-**Show:** Azure ML Model Registry
-
-**Say:**
-> "Everything is versioned. We can prove which model made which decision, when."
-
-**Click through:**
-1. Model versions
-2. Tags (AUC, build number)
-3. Artifacts (model.joblib, scaler.joblib)
-
-**Business call-out:**
-> "This is your audit trail. Regulators and compliance teams need this."
-
----
-
-### Part 3: Deploy Endpoints (15-22 min)
-
-**Show:** Deployment YAML files, then Azure ML Endpoints
-
-#### Batch Endpoint
-> "Every morning at 6am, this pipeline scores all upcoming appointments and writes back to your Lakehouse. By 8am, planners see the risk list in Power BI."
-
-#### Online Endpoint
-> "This is how you'd integrate with HiX. Low latency, versioned, auditable."
-
-**Demo:** Test online endpoint with curl/Postman
-
-```bash
-curl -X POST "https://noshow-online-endpoint.westeurope.inference.ml.azure.com/score" \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"distance_km":15,"previous_no_shows":3,"age":55,"medication_count":5,"lead_time_days":21,"day_of_week":0,"hour_of_day":8,"chronic_conditions":2}'
-```
-
----
-
-### Part 4: Power BI Dashboard (22-27 min)
-
-**Show:** Power BI report (mock or real)
-
-**Say:**
-> "Frontline planners see the highest-risk patients and can trigger SMS reminders or overbooking adjustments."
-
-**Key views:**
-- Today's risk list (sorted by risk)
-- Clinic breakdown
-- Trend over time
-
----
-
-### Part 5: CI/CD & Approvals (27-32 min)
-
-**Show:** GitHub Actions workflow
-
-**Say:**
-> "Nothing hits production without approval. When Thomas pushes code, it automatically tests, trains, deploys to staging, and waits for approval before production."
-
-**Click through:**
-1. Workflow runs
-2. Protected environments
-3. Approval gates
-
-**Business call-out:**
-> "Auditors love this. Full traceability from code change to production."
-
----
-
-### Part 6: Monitoring (32-36 min)
-
-**Show:** Azure ML Monitoring dashboard
-
-**Say:**
-> "We'll know when the model stops working before the business feels it."
-
-**Key metrics:**
-- Data drift detection
-- Prediction distribution
-- Alert configuration
-
----
-
-### Closing (36-40 min)
-
-**Say:**
-> "Let's recap what we've covered..."
-
-| Step | What You Saw | Business Value |
-|------|--------------|----------------|
-| Train | Fabric notebook on CPU | Works with your current setup |
-| Register | Azure ML model registry | Audit trail, versioning |
-| Deploy | Batch + Online endpoints | Daily lists + HiX integration |
-| Operate | Power BI + GitHub CI/CD | Planners use it, governed changes |
-| Monitor | Drift detection + alerts | Sustainable long-term |
-
-**Next steps:**
-1. Pilot with 2 clinics (6-8 weeks)
-2. Measure no-show reduction
-3. Expand if successful
-
----
-
-## Key Talking Points
-
-### For Thomas (Data Scientist)
-- "You can keep using Fabric notebooks"
-- "Azure ML handles the deployment complexity"
-- "MLflow integration for experiment tracking"
-
-### For Reinier (Infra)
-- "Private endpoints available"
-- "Managed identity for security"
-- "CPU compute keeps costs low"
-
-### For Edwin (BI Lead)
-- "Power BI refreshes automatically"
-- "Semantic model over predictions table"
-- "Self-service analytics on risk data"
-
-### For Sophie (AI Project Lead)
-- "Governed deployment with approvals"
-- "Clear success metrics"
-- "Sustainable, not a one-off"
-
----
-
-## FAQ & Objection Handling
-
-### "Is Azure ML necessary? Can't we do this in Fabric?"
-> "Fabric is great for development. Azure ML adds production-grade deployment, versioning, monitoring, and CI/CD integration. Think of it as the 'ops' in MLOps."
-
-### "What about GDPR/healthcare compliance?"
-> "Data stays in your Azure tenant (West Europe). Use pseudonymization for ML features. Managed identities eliminate credential risks. Full audit trail in model registry."
-
-### "We don't have GPU budget."
-> "This model runs on CPU. LogisticRegression is fast and interpretable. Start simple, add complexity later if needed."
-
-### "What if the model degrades?"
-> "Azure ML monitoring detects data drift and alerts you. Set up automatic retraining triggers or manual review workflows."
-
-### "How long to implement?"
-> "Pilot in 6-8 weeks with 2 clinics. You already have the data and Fabric setup. Main work is endpoint deployment and Power BI integration."
-
----
-
-## File Structure
+## 📁 Project Structure
 
 ```
 noshow-ml-demo/
-├── .github/
-│   └── workflows/
-│       └── mlops.yml              # CI/CD pipeline
-├── data/
-│   └── synthetic_data_generator.py # Demo data generation
-├── notebooks/
-│   └── 01_train_noshow_model.ipynb # Training notebook
-├── deployment/
-│   ├── batch/
-│   │   ├── batch-endpoint.yml
-│   │   ├── batch-deployment.yml
-│   │   ├── environment.yml
-│   │   └── src/
-│   │       └── score_batch.py
-│   └── online/
-│       ├── online-endpoint.yml
-│       ├── online-deployment.yml
-│       ├── environment.yml
-│       └── src/
-│           └── score_online.py
-├── outputs/                        # Model artifacts (generated)
-└── README.md                       # This file
+├── noshow_prediction/           # ML code
+│   ├── training/
+│   │   ├── train.py             # Training logic
+│   │   ├── train_aml.py         # Azure ML entry script
+│   │   └── test_train.py        # Unit tests (15 tests)
+│   ├── scoring/
+│   │   └── score.py             # Scoring script
+│   └── conda_dependencies.yml   # Environment spec
+│
+├── ml_service/                  # Azure ML pipeline
+│   └── pipelines/
+│       └── noshow_build_train_pipeline.py
+│
+├── .github/workflows/           # CI/CD
+│   └── mlops-ci-cd.yml          # GitHub Actions workflow
+│
+├── deployment/                  # Endpoint configs
+│   ├── online/                  # Real-time endpoint
+│   ├── batch/                   # Batch endpoint
+│   └── sample_requests.json     # Test payloads
+│
+├── data/                        # Training data
+│   └── KaggleV2-May-2016.csv    # Kaggle dataset
+│
+├── outputs/                     # Model artifacts
+│   ├── model.joblib
+│   ├── scaler.joblib
+│   └── metrics.json
+│
+└── notebooks/                   # Experimentation
+    └── 01_train_noshow_model.ipynb
 ```
 
 ---
 
-## Success Metrics
+## 🔄 CI/CD Pipeline
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Model AUC | ≥ 0.75 | Azure ML metrics |
-| Daily batch SLA | By 07:30 | Pipeline monitoring |
-| Planner adoption | ≥ 80% | Power BI usage |
-| No-show reduction | 10-20% | A/B test vs control clinics |
-| Governance compliance | 100% | All changes via PR + approval |
+```
+Push to main
+     │
+     ▼
+┌─────────────────┐
+│  🧪 Tests       │  Run pytest
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  🚂 Train       │  Train in Azure ML
+└────────┬────────┘  Register model
+         │
+         ▼
+┌─────────────────┐
+│  🎭 Staging     │  Deploy to staging endpoint
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  🏭 Production  │  Deploy to production
+└─────────────────┘  (with approval gate)
+```
+
+### GitHub Environments
+| Environment | Secrets | Purpose |
+|-------------|---------|---------|
+| `staging` | Azure credentials | Test deployments |
+| `production` | Azure credentials | Production (requires approval) |
 
 ---
 
-## Contact
+## ☁️ Azure Resources
 
-**Next meeting:** 18-02 (scheduled by Margot)
-
-**Preparation needed:**
-- [ ] Confirm Azure ML workspace access
-- [ ] Identify 2 pilot clinics
-- [ ] Define success criteria with stakeholders
+| Resource | Name | Purpose |
+|----------|------|---------|
+| ML Workspace | `AI-WORKSPACE-shark` | Model registry, endpoints |
+| Resource Group | `rg-ai-hub-citadel-dev-02` | Container |
+| Compute Cluster | `cpu-cluster` | Training compute (0-2 nodes) |
+| Model | `noshow-logreg` | Registered model |
+| Data Asset | `noshow-data:1` | Training data in blob store |
+| Online Endpoint | `noshow-online-endpoint-staging` | Staging predictions |
+| Batch Endpoint | `noshow-batch-endpoint` | Daily batch scoring |
 
 ---
 
-*Demo package created for deep technical demonstration with business focus.*
-#   T r i g g e r   C I 
- 
- 
+## 📈 Business Impact
+
+| Metric | Value | Impact |
+|--------|-------|--------|
+| No-show rate reduction | 10-20% | Fewer empty slots |
+| Revenue recovery | €500K+/year | Better capacity utilization |
+| Patient experience | Improved | Proactive outreach for high-risk |
+
+---
+
+## 🔧 Configuration
+
+### GitHub Secrets (Repository level)
+```
+AZURE_CLIENT_ID
+AZURE_CLIENT_SECRET
+AZURE_TENANT_ID
+AZURE_SUBSCRIPTION_ID
+```
+
+### GitHub Variables (Environment level)
+```
+AZURE_ML_RESOURCE_GROUP=rg-ai-hub-citadel-dev-02
+AZURE_ML_WORKSPACE=AI-WORKSPACE-shark
+```
+
+---
+
+## 📚 References
+
+- [MLOpsPython Template](https://github.com/microsoft/MLOpsPython)
+- [Azure ML Documentation](https://learn.microsoft.com/azure/machine-learning/)
+- [Kaggle No-Show Dataset](https://www.kaggle.com/datasets/joniarroba/noshowappointments)
