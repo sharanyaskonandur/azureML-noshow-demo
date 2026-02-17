@@ -78,20 +78,11 @@ def main():
     # Get/create environment
     env_id = get_environment(ml_client, args.env_name)
     
-    # Get dataset path
-    try:
-        dataset = ml_client.data.get(args.dataset_name, label="latest")
-        print(f"Using dataset: {dataset.name} v{dataset.version}")
-        data_path = dataset.path
-    except Exception as e:
-        print(f"Dataset not found, using default path: {e}")
-        data_path = "azureml://datastores/workspaceblobstore/paths/data/KaggleV2-May-2016.csv"
-    
-    # Get code path
+    # Get code path - include data directory for simplicity
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    code_path = os.path.join(repo_root, "noshow_prediction", "training")
+    code_path = repo_root  # Upload entire repo to include data/
     
-    # Create training job
+    # Create training job - use local data file from repo
     print("\nSubmitting training job...")
     job = command(
         display_name="noshow-training-job",
@@ -99,12 +90,9 @@ def main():
         compute=compute_name,
         environment=env_id,
         code=code_path,
-        command="python train_aml.py --data-path ${{inputs.data}} --output-dir ${{outputs.model}}",
-        inputs={
-            "data": Input(type=AssetTypes.URI_FILE, path=data_path)
-        },
+        command="python noshow_prediction/training/train_aml.py --data-path data/KaggleV2-May-2016.csv --output-dir outputs",
         outputs={
-            "model": {"type": "uri_folder", "mode": "rw_mount"}
+            "model": {"type": "uri_folder", "mode": "rw_mount", "path": "azureml://datastores/workspaceartifactstore/paths/outputs"}
         },
         experiment_name="noshow-training"
     )

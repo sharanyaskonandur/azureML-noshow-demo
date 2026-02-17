@@ -46,10 +46,10 @@ jobs:
           pytest noshow_prediction/training/test_train.py -v
 
   # ===========================================================================
-  # Job 2: Train Model (main branch only)
+  # Job 2: Train & Register Model (main branch only)
   # ===========================================================================
   train-model:
-    name: 🚂 Train Model
+    name: 🚂 Train & Register Model
     runs-on: [self-hosted, linux]
     needs: code-quality
     if: github.ref == 'refs/heads/main'
@@ -66,9 +66,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Pin marshmallow to avoid azure-ai-ml compatibility issue
-          pip install "marshmallow>=3.5.0,<3.21.0"
-          pip install azure-ai-ml azure-identity
+          pip install scikit-learn pandas numpy joblib
+      
+      - name: Train model locally
+        run: |
+          cd noshow_prediction/training
+          python train.py --data-path ../../data/KaggleV2-May-2016.csv --output-dir ../../outputs
       
       - name: Install Azure CLI
         run: |
@@ -80,16 +83,16 @@ jobs:
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
-      - name: Submit Training Pipeline
+      - name: Register model in Azure ML
         run: |
-          python ml_service/pipelines/noshow_build_train_pipeline.py \
-            --compute-name cpu-cluster \
-            --env-name noshow-training-env-v2 \
-            --dataset-name noshow-appointments-kaggle
-        env:
-          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          RESOURCE_GROUP: ${{ vars.AZURE_ML_RESOURCE_GROUP }}
-          WORKSPACE_NAME: ${{ vars.AZURE_ML_WORKSPACE }}
+          az ml model create \
+            --name noshow-logreg \
+            --path outputs/ \
+            --resource-group ${{ vars.AZURE_ML_RESOURCE_GROUP }} \
+            --workspace-name ${{ vars.AZURE_ML_WORKSPACE }} \
+            --type custom_model \
+            --description "No-show prediction model trained on $(date)"
+          echo "✅ Model registered"
 
   # ===========================================================================
   # Job 3: Deploy to Staging

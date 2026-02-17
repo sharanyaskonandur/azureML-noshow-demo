@@ -15,10 +15,12 @@ import argparse
 import mlflow
 from azureml.core import Run
 
-# Add parent directory for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add paths for imports - works from both repo root and training directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)  # For direct train.py imports
+sys.path.insert(0, os.path.dirname(script_dir))  # For noshow_prediction package
 
-from training.train import (
+from train import (
     load_data,
     prepare_data,
     train_model,
