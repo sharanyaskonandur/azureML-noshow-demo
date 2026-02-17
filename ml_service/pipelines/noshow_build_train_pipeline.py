@@ -59,8 +59,8 @@ def main():
     # Get/create compute
     compute_name = get_or_create_compute(ml_client, args.compute_name)
     
-    # Use curated sklearn environment - no build required!
-    env_name = "AzureML-sklearn-1.0-ubuntu20.04-py38-cpu:latest"
+    # Use curated sklearn environment from azureml registry - no build required!
+    env_name = "azureml://registries/azureml/environments/sklearn-1.5/labels/latest"
     print(f"Using curated environment: {env_name}")
     
     # Get code path
