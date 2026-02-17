@@ -23,6 +23,10 @@ on:
       - main
       - develop
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   PYTHON_VERSION: '3.9'
   AZURE_ML_RESOURCE_GROUP: ${{ secrets.AZURE_ML_RESOURCE_GROUP }}
@@ -34,7 +38,7 @@ jobs:
   # ===========================================================================
   code-quality:
     name: Code Quality & Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +75,7 @@ jobs:
   # ===========================================================================
   train-model:
     name: Train Model
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: code-quality
     if: github.ref == 'refs/heads/main'
     
@@ -88,10 +92,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
       - name: Submit Training Pipeline
         run: |
@@ -109,7 +120,7 @@ jobs:
   # ===========================================================================
   deploy-staging:
     name: Deploy to Staging
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: train-model
     if: github.ref == 'refs/heads/main'
     environment: staging
@@ -117,10 +128,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
       - name: Deploy to Staging Endpoint
         run: |
@@ -144,7 +162,7 @@ jobs:
   # ===========================================================================
   smoke-tests:
     name: Smoke Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: deploy-staging
     
     steps:
@@ -160,10 +178,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
       - name: Run Smoke Tests
         run: |
@@ -179,7 +204,7 @@ jobs:
   # ===========================================================================
   deploy-production:
     name: Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     needs: smoke-tests
     if: github.ref == 'refs/heads/main'
     environment: production  # Requires approval in GitHub settings
@@ -187,10 +212,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
       - name: Deploy to Production Endpoint
         run: |
