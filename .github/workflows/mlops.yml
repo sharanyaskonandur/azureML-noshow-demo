@@ -37,6 +37,10 @@ on:
         default: 'true'
         type: boolean
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AZURE_ML_WORKSPACE: ${{ vars.AZURE_ML_WORKSPACE }}
   AZURE_ML_RESOURCE_GROUP: ${{ vars.AZURE_ML_RESOURCE_GROUP }}
