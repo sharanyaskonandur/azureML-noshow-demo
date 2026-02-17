@@ -25,8 +25,8 @@ on:
 
 env:
   PYTHON_VERSION: '3.9'
-  AZURE_ML_RESOURCE_GROUP: ${{ secrets.AZURE_ML_RESOURCE_GROUP }}
-  AZURE_ML_WORKSPACE: ${{ secrets.AZURE_ML_WORKSPACE }}
+  AZURE_ML_RESOURCE_GROUP: ${{ vars.AZURE_ML_RESOURCE_GROUP }}
+  AZURE_ML_WORKSPACE: ${{ vars.AZURE_ML_WORKSPACE }}
 
 jobs:
   # ===========================================================================
@@ -74,6 +74,7 @@ jobs:
     runs-on: [self-hosted, linux]
     needs: code-quality
     if: github.ref == 'refs/heads/main'
+    environment: staging
     
     steps:
       - uses: actions/checkout@v4
@@ -96,7 +97,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
       - name: Submit Training Pipeline
         run: |
@@ -106,8 +107,8 @@ jobs:
             --dataset-name noshow-appointments-kaggle
         env:
           SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          RESOURCE_GROUP: ${{ secrets.AZURE_ML_RESOURCE_GROUP }}
-          WORKSPACE_NAME: ${{ secrets.AZURE_ML_WORKSPACE }}
+          RESOURCE_GROUP: ${{ vars.AZURE_ML_RESOURCE_GROUP }}
+          WORKSPACE_NAME: ${{ vars.AZURE_ML_WORKSPACE }}
 
   # ===========================================================================
   # Job 3: Deploy to Staging
@@ -130,22 +131,22 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
       - name: Deploy to Staging Endpoint
         run: |
           az ml online-endpoint create \
             --name noshow-online-endpoint-staging \
-            --resource-group ${{ secrets.AZURE_ML_RESOURCE_GROUP }} \
-            --workspace-name ${{ secrets.AZURE_ML_WORKSPACE }} \
+            --resource-group ${{ vars.AZURE_ML_RESOURCE_GROUP }} \
+            --workspace-name ${{ vars.AZURE_ML_WORKSPACE }} \
             --file deployment/online/online-endpoint.yml \
             --set name=noshow-online-endpoint-staging || true
           
           az ml online-deployment create \
             --name blue \
             --endpoint-name noshow-online-endpoint-staging \
-            --resource-group ${{ secrets.AZURE_ML_RESOURCE_GROUP }} \
-            --workspace-name ${{ secrets.AZURE_ML_WORKSPACE }} \
+            --resource-group ${{ vars.AZURE_ML_RESOURCE_GROUP }} \
+            --workspace-name ${{ vars.AZURE_ML_WORKSPACE }} \
             --file deployment/online/online-deployment.yml \
             --all-traffic
 
@@ -156,6 +157,7 @@ jobs:
     name: Smoke Tests
     runs-on: [self-hosted, linux]
     needs: deploy-staging
+    environment: staging
     
     steps:
       - uses: actions/checkout@v4
@@ -178,7 +180,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
       - name: Run Smoke Tests
         run: |
@@ -186,8 +188,8 @@ jobs:
             --endpoint-name noshow-online-endpoint-staging
         env:
           SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          RESOURCE_GROUP: ${{ secrets.AZURE_ML_RESOURCE_GROUP }}
-          WORKSPACE_NAME: ${{ secrets.AZURE_ML_WORKSPACE }}
+          RESOURCE_GROUP: ${{ vars.AZURE_ML_RESOURCE_GROUP }}
+          WORKSPACE_NAME: ${{ vars.AZURE_ML_WORKSPACE }}
 
   # ===========================================================================
   # Job 5: Deploy to Production (with approval)
@@ -210,20 +212,20 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
       
       - name: Deploy to Production Endpoint
         run: |
           az ml online-endpoint create \
             --name noshow-online-endpoint \
-            --resource-group ${{ secrets.AZURE_ML_RESOURCE_GROUP }} \
-            --workspace-name ${{ secrets.AZURE_ML_WORKSPACE }} \
+            --resource-group ${{ vars.AZURE_ML_RESOURCE_GROUP }} \
+            --workspace-name ${{ vars.AZURE_ML_WORKSPACE }} \
             --file deployment/online/online-endpoint.yml || true
           
           az ml online-deployment create \
             --name blue-${{ github.run_number }} \
             --endpoint-name noshow-online-endpoint \
-            --resource-group ${{ secrets.AZURE_ML_RESOURCE_GROUP }} \
-            --workspace-name ${{ secrets.AZURE_ML_WORKSPACE }} \
+            --resource-group ${{ vars.AZURE_ML_RESOURCE_GROUP }} \
+            --workspace-name ${{ vars.AZURE_ML_WORKSPACE }} \
             --file deployment/online/online-deployment.yml \
             --all-traffic
