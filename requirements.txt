@@ -10,8 +10,8 @@ matplotlib==3.7.2
 seaborn==0.12.2
 
 # Azure ML SDK
-azure-ai-ml==1.12.0
-azure-identity==1.14.0
+azure-ai-ml>=1.15.0
+azure-identity>=1.14.0
 
 # Development & Testing
 pytest==7.4.0
