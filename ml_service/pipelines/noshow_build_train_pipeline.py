@@ -1,13 +1,15 @@
 """
 Azure ML Training Job Submitter for No-Show Prediction
 =======================================================
-Submits a training job to Azure ML compute cluster.
+Submits a training job to Azure ML compute cluster using:
+- Curated sklearn environment (no conda build required)
+- Data asset uploaded to workspace blob store
 """
 
 import os
 import argparse
 from azure.ai.ml import MLClient, command, Input
-from azure.ai.ml.entities import Environment, AmlCompute
+from azure.ai.ml.entities import AmlCompute
 from azure.ai.ml.constants import AssetTypes
 from azure.identity import DefaultAzureCredential
 
@@ -41,29 +43,11 @@ def get_or_create_compute(ml_client: MLClient, compute_name: str) -> str:
     return compute_name
 
 
-def get_environment(ml_client: MLClient, env_name: str) -> str:
-    """Always create new environment version to pick up conda changes."""
-    print(f"Creating/updating environment: {env_name}")
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    conda_file = os.path.join(repo_root, "noshow_prediction", "conda_dependencies.yml")
-    
-    env = Environment(
-        name=env_name,
-        image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest",
-        conda_file=conda_file,
-        description="Environment for no-show prediction training"
-    )
-    env = ml_client.environments.create_or_update(env)
-    print(f"Using environment: {env.name}:{env.version}")
-    return f"{env.name}:{env.version}"
-
-
 def main():
     """Submit training job to Azure ML."""
     parser = argparse.ArgumentParser(description='Submit no-show training job')
     parser.add_argument('--compute-name', type=str, default='cpu-cluster')
-    parser.add_argument('--env-name', type=str, default='noshow-training-env')
-    parser.add_argument('--dataset-name', type=str, default='noshow-appointments-kaggle')
+    parser.add_argument('--data-asset', type=str, default='noshow-data:1')
     args = parser.parse_args()
     
     print("=== Submitting No-Show Training Job ===")
@@ -75,24 +59,25 @@ def main():
     # Get/create compute
     compute_name = get_or_create_compute(ml_client, args.compute_name)
     
-    # Get/create environment
-    env_id = get_environment(ml_client, args.env_name)
+    # Use curated sklearn environment - no build required!
+    env_name = "AzureML-sklearn-1.0-ubuntu20.04-py38-cpu:latest"
+    print(f"Using curated environment: {env_name}")
     
-    # Get code path - include data directory for simplicity
+    # Get code path
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    code_path = repo_root  # Upload entire repo to include data/
+    code_path = os.path.join(repo_root, "noshow_prediction", "training")
     
-    # Create training job - use local data file from repo
+    # Create training job using registered data asset
     print("\nSubmitting training job...")
     job = command(
         display_name="noshow-training-job",
         description="Train no-show prediction model",
         compute=compute_name,
-        environment=env_id,
+        environment=env_name,
         code=code_path,
-        command="python noshow_prediction/training/train_aml.py --data-path data/KaggleV2-May-2016.csv --output-dir outputs",
-        outputs={
-            "model": {"type": "uri_folder", "mode": "rw_mount", "path": "azureml://datastores/workspaceartifactstore/paths/outputs"}
+        command="python train.py --data-path ${{inputs.data}} --output-dir ./outputs",
+        inputs={
+            "data": Input(type=AssetTypes.URI_FILE, path=f"azureml:{args.data_asset}")
         },
         experiment_name="noshow-training"
     )
@@ -105,6 +90,20 @@ def main():
     # Wait for completion
     print("\nWaiting for job to complete...")
     ml_client.jobs.stream(submitted_job.name)
+    
+    # Register model from job outputs
+    print("\nRegistering model...")
+    model_name = "noshow-logreg"
+    
+    from azure.ai.ml.entities import Model
+    model = Model(
+        path=f"azureml://jobs/{submitted_job.name}/outputs/artifacts/paths/outputs/",
+        name=model_name,
+        type="custom_model",
+        description=f"Trained from job {submitted_job.name}"
+    )
+    registered_model = ml_client.models.create_or_update(model)
+    print(f"Model registered: {registered_model.name} v{registered_model.version}")
     
     print("\n=== Training Job Complete ===")
 
