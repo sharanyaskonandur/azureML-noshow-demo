@@ -1,53 +1,32 @@
 """
-Azure ML Training Pipeline Builder for No-Show Prediction
-==========================================================
-This script creates and publishes the training pipeline in Azure ML.
-The pipeline performs: data preparation → training → evaluation → registration.
-
-Following MLOpsPython template: https://github.com/microsoft/MLOpsPython
+Azure ML Training Job Submitter for No-Show Prediction
+=======================================================
+Submits a training job to Azure ML compute cluster.
 """
 
 import os
-import sys
 import argparse
-from azure.ai.ml import MLClient, Input, Output, command, dsl
-from azure.ai.ml.entities import (
-    Environment,
-    BuildContext,
-    AmlCompute,
-    Data,
-    Model
-)
-from azure.ai.ml.constants import AssetTypes, InputOutputModes
+from azure.ai.ml import MLClient, command, Input
+from azure.ai.ml.entities import Environment, AmlCompute
+from azure.ai.ml.constants import AssetTypes
 from azure.identity import DefaultAzureCredential
-
-
-def get_workspace_config() -> dict:
-    """Get workspace configuration from environment variables."""
-    return {
-        'subscription_id': os.getenv('SUBSCRIPTION_ID'),
-        'resource_group': os.getenv('RESOURCE_GROUP'),
-        'workspace_name': os.getenv('WORKSPACE_NAME'),
-    }
 
 
 def get_ml_client() -> MLClient:
     """Create ML client from environment configuration."""
-    config = get_workspace_config()
     credential = DefaultAzureCredential()
-    
     return MLClient(
         credential=credential,
-        subscription_id=config['subscription_id'],
-        resource_group_name=config['resource_group'],
-        workspace_name=config['workspace_name']
+        subscription_id=os.getenv('SUBSCRIPTION_ID'),
+        resource_group_name=os.getenv('RESOURCE_GROUP'),
+        workspace_name=os.getenv('WORKSPACE_NAME')
     )
 
 
 def get_or_create_compute(ml_client: MLClient, compute_name: str) -> str:
     """Get or create compute cluster for training."""
     try:
-        compute = ml_client.compute.get(compute_name)
+        ml_client.compute.get(compute_name)
         print(f"Using existing compute: {compute_name}")
     except Exception:
         print(f"Creating compute cluster: {compute_name}")
@@ -59,24 +38,20 @@ def get_or_create_compute(ml_client: MLClient, compute_name: str) -> str:
             idle_time_before_scale_down=300
         )
         ml_client.compute.begin_create_or_update(compute).result()
-    
     return compute_name
 
 
-def get_environment(ml_client: MLClient, env_name: str) -> Environment:
+def get_environment(ml_client: MLClient, env_name: str) -> str:
     """Get or create training environment."""
     try:
         env = ml_client.environments.get(env_name, label="latest")
         print(f"Using existing environment: {env_name}")
+        return f"{env.name}:{env.version}"
     except Exception:
         print(f"Creating environment: {env_name}")
-        # Go up 3 levels: pipelines -> ml_service -> repo_root
         repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        conda_file = os.path.join(
-            repo_root,
-            "noshow_prediction",
-            "conda_dependencies.yml"
-        )
+        conda_file = os.path.join(repo_root, "noshow_prediction", "conda_dependencies.yml")
+        
         env = Environment(
             name=env_name,
             image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest",
@@ -84,116 +59,18 @@ def get_environment(ml_client: MLClient, env_name: str) -> Environment:
             description="Environment for no-show prediction training"
         )
         env = ml_client.environments.create_or_update(env)
-    
-    return env
-
-
-def create_train_step(env: Environment, compute_name: str):
-    """Create training step component."""
-    
-    @command(
-        display_name="Train No-Show Model",
-        description="Train logistic regression model for no-show prediction",
-        environment=env,
-        compute=compute_name,
-        code="../noshow_prediction/training",
-    )
-    def train_step(
-        data_path: Input(type=AssetTypes.URI_FILE),
-        output_dir: Output(type=AssetTypes.URI_FOLDER),
-        test_size: float = 0.2,
-        random_state: int = 42
-    ):
-        return f"""
-        python train_aml.py \
-            --data-path ${{inputs.data_path}} \
-            --output-dir ${{outputs.output_dir}} \
-            --test-size {test_size} \
-            --random-state {random_state}
-        """
-    
-    return train_step
-
-
-def create_evaluate_step(env: Environment, compute_name: str):
-    """Create evaluation step component."""
-    
-    @command(
-        display_name="Evaluate Model",
-        description="Evaluate and compare model performance",
-        environment=env,
-        compute=compute_name,
-        code="../noshow_prediction/evaluate",
-    )
-    def evaluate_step(
-        model_dir: Input(type=AssetTypes.URI_FOLDER),
-        evaluation_output: Output(type=AssetTypes.URI_FOLDER)
-    ):
-        return f"""
-        python evaluate_model.py \
-            --new-model-dir ${{inputs.model_dir}} \
-            --output-file ${{outputs.evaluation_output}}/evaluation_result.json
-        """
-    
-    return evaluate_step
-
-
-@dsl.pipeline(
-    name="noshow-training-pipeline",
-    description="End-to-end training pipeline for no-show prediction model",
-    default_compute="cpu-cluster"
-)
-def noshow_training_pipeline(
-    training_data: Input,
-    test_size: float = 0.2,
-    random_state: int = 42
-):
-    """
-    Create the training pipeline.
-    
-    Pipeline steps:
-    1. Train model
-    2. Evaluate model
-    
-    Args:
-        training_data: Path to training data
-        test_size: Test split ratio
-        random_state: Random seed
-    """
-    # Training step
-    train_job = train_step(
-        data_path=training_data,
-        test_size=test_size,
-        random_state=random_state
-    )
-    
-    # Evaluation step
-    evaluate_job = evaluate_step(
-        model_dir=train_job.outputs.output_dir
-    )
-    
-    return {
-        "model_output": train_job.outputs.output_dir,
-        "evaluation_output": evaluate_job.outputs.evaluation_output
-    }
+        return f"{env.name}:{env.version}"
 
 
 def main():
-    """Build and publish training pipeline."""
-    
-    parser = argparse.ArgumentParser(description='Build no-show training pipeline')
-    parser.add_argument('--compute-name', type=str, default='cpu-cluster',
-                        help='Compute cluster name')
-    parser.add_argument('--env-name', type=str, default='noshow-training-env',
-                        help='Environment name')
-    parser.add_argument('--dataset-name', type=str, default='noshow-appointments-kaggle',
-                        help='Training dataset name')
-    parser.add_argument('--publish', action='store_true',
-                        help='Publish pipeline after building')
-    
+    """Submit training job to Azure ML."""
+    parser = argparse.ArgumentParser(description='Submit no-show training job')
+    parser.add_argument('--compute-name', type=str, default='cpu-cluster')
+    parser.add_argument('--env-name', type=str, default='noshow-training-env')
+    parser.add_argument('--dataset-name', type=str, default='noshow-appointments-kaggle')
     args = parser.parse_args()
     
-    print("=== Building No-Show Training Pipeline ===")
+    print("=== Submitting No-Show Training Job ===")
     
     # Get ML client
     ml_client = get_ml_client()
@@ -203,38 +80,49 @@ def main():
     compute_name = get_or_create_compute(ml_client, args.compute_name)
     
     # Get/create environment
-    env = get_environment(ml_client, args.env_name)
+    env_id = get_environment(ml_client, args.env_name)
     
-    # Get dataset
+    # Get dataset path
     try:
         dataset = ml_client.data.get(args.dataset_name, label="latest")
         print(f"Using dataset: {dataset.name} v{dataset.version}")
-        data_input = Input(type=AssetTypes.URI_FILE, path=dataset.path)
+        data_path = dataset.path
     except Exception as e:
-        print(f"Warning: Dataset not found, using default path: {e}")
-        data_input = Input(
-            type=AssetTypes.URI_FILE,
-            path="azureml://datastores/workspaceblobstore/paths/data/KaggleV2-May-2016.csv"
-        )
+        print(f"Dataset not found, using default path: {e}")
+        data_path = "azureml://datastores/workspaceblobstore/paths/data/KaggleV2-May-2016.csv"
     
-    # Build pipeline
-    print("\nBuilding pipeline...")
-    pipeline = noshow_training_pipeline(
-        training_data=data_input
+    # Get code path
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    code_path = os.path.join(repo_root, "noshow_prediction", "training")
+    
+    # Create training job
+    print("\nSubmitting training job...")
+    job = command(
+        display_name="noshow-training-job",
+        description="Train no-show prediction model",
+        compute=compute_name,
+        environment=env_id,
+        code=code_path,
+        command="python train_aml.py --data-path ${{inputs.data}} --output-dir ${{outputs.model}}",
+        inputs={
+            "data": Input(type=AssetTypes.URI_FILE, path=data_path)
+        },
+        outputs={
+            "model": {"type": "uri_folder", "mode": "rw_mount"}
+        },
+        experiment_name="noshow-training"
     )
     
-    # Submit or publish
-    if args.publish:
-        print("\nPublishing pipeline...")
-        published_pipeline = ml_client.jobs.create_or_update(pipeline)
-        print(f"Pipeline published: {published_pipeline.name}")
-    else:
-        print("\nSubmitting pipeline job...")
-        pipeline_job = ml_client.jobs.create_or_update(pipeline)
-        print(f"Pipeline job submitted: {pipeline_job.name}")
-        print(f"Monitor at: {pipeline_job.studio_url}")
+    # Submit job
+    submitted_job = ml_client.jobs.create_or_update(job)
+    print(f"Job submitted: {submitted_job.name}")
+    print(f"Monitor at: {submitted_job.studio_url}")
     
-    print("\n=== Pipeline Build Complete ===")
+    # Wait for completion
+    print("\nWaiting for job to complete...")
+    ml_client.jobs.stream(submitted_job.name)
+    
+    print("\n=== Training Job Complete ===")
 
 
 if __name__ == '__main__':
