@@ -106,7 +106,12 @@ jobs:
         run: |
           pip install scikit-learn pandas numpy joblib pyarrow azure-ai-ml azure-identity
       
-      - name: 🔐 Azure Login
+      - name: � Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
+      - name: �🔐 Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -207,7 +212,12 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
       
-      - name: 🔐 Azure Login
+      - name: � Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
+      - name: �🔐 Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -280,7 +290,12 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
       
-      - name: 🔐 Azure Login
+      - name: � Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml --yes
+      
+      - name: �🔐 Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
