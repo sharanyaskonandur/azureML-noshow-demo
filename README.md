@@ -64,8 +64,8 @@ pytest test_train.py -v
 az ml online-endpoint invoke \
   --name noshow-online-endpoint-staging \
   --request-file deployment/sample_requests.json \
-  --resource-group rg-ai-hub-citadel-dev-02 \
-  --workspace-name AI-WORKSPACE-shark
+  --resource-group <your-resource-group> \
+  --workspace-name <your-workspace-name>
 ```
 
 ### Sample Predictions
@@ -157,8 +157,8 @@ Push to main
 
 | Resource | Name | Purpose |
 |----------|------|---------|
-| ML Workspace | `AI-WORKSPACE-shark` | Model registry, endpoints |
-| Resource Group | `rg-ai-hub-citadel-dev-02` | Container |
+| ML Workspace | `<your-workspace-name>` | Model registry, endpoints |
+| Resource Group | `<your-resource-group>` | Container |
 | Compute Cluster | `cpu-cluster` | Training compute (0-2 nodes) |
 | Model | `noshow-logreg` | Registered model |
 | Data Asset | `noshow-data:1` | Training data in blob store |
@@ -250,8 +250,8 @@ AZURE_SUBSCRIPTION_ID
 
 ### GitHub Variables (Environment level)
 ```
-AZURE_ML_RESOURCE_GROUP=rg-ai-hub-citadel-dev-02
-AZURE_ML_WORKSPACE=AI-WORKSPACE-shark
+AZURE_ML_RESOURCE_GROUP=<your-resource-group>
+AZURE_ML_WORKSPACE=<your-workspace-name>
 ```
 
 ---
