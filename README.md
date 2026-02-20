@@ -256,6 +256,61 @@ AZURE_ML_WORKSPACE=<your-workspace-name>
 
 ---
 
+## 🎓 Learning Resources for New Azure ML Users
+
+### Getting Started
+| Resource | Description |
+|----------|-------------|
+| [Azure ML Quickstart](https://learn.microsoft.com/azure/machine-learning/quickstart-create-resources) | Create your first workspace and resources |
+| [Azure ML Studio Tour](https://learn.microsoft.com/azure/machine-learning/overview-what-is-azure-machine-learning) | Overview of Azure ML capabilities |
+| [Free Azure Account](https://azure.microsoft.com/free/) | $200 credit for 30 days + free tier services |
+
+### Hands-On Tutorials
+| Tutorial | What You'll Learn |
+|----------|-------------------|
+| [Train your first model](https://learn.microsoft.com/azure/machine-learning/tutorial-train-model) | End-to-end training workflow |
+| [Deploy a model](https://learn.microsoft.com/azure/machine-learning/tutorial-deploy-model) | Online endpoints and inference |
+| [AutoML Tutorial](https://learn.microsoft.com/azure/machine-learning/tutorial-first-experiment-automated-ml) | No-code ML with AutoML |
+| [MLOps with GitHub Actions](https://learn.microsoft.com/azure/machine-learning/how-to-github-actions-machine-learning) | CI/CD for ML |
+
+### Learning Paths (Microsoft Learn)
+- [Azure Data Scientist Associate](https://learn.microsoft.com/credentials/certifications/azure-data-scientist/) - DP-100 certification path
+- [Build AI solutions with Azure ML](https://learn.microsoft.com/training/paths/build-ai-solutions-with-azure-ml-service/) - Comprehensive learning path
+- [MLOps Fundamentals](https://learn.microsoft.com/training/paths/introduction-machine-learn-operations/) - Production ML best practices
+
+### Sample Repositories
+| Repo | Description |
+|------|-------------|
+| [Azure ML Examples](https://github.com/Azure/azureml-examples) | Official samples for SDK v2, CLI v2 |
+| [MLOpsPython](https://github.com/microsoft/MLOpsPython) | Production MLOps template |
+| [Azure ML Cheat Sheet](https://azure.github.io/azureml-cheatsheets/) | Quick reference for common tasks |
+
+### Key Concepts to Explore
+1. **Workspaces** - Central hub for all ML assets
+2. **Compute** - Training clusters, compute instances, serverless
+3. **Data Assets** - Versioned, governed data references
+4. **Environments** - Reproducible Python/Docker environments
+5. **Pipelines** - Orchestrated ML workflows
+6. **Endpoints** - Real-time and batch inference
+7. **MLflow** - Experiment tracking and model registry
+
+### Useful Azure CLI Commands
+```bash
+# List workspaces you have access to
+az ml workspace list --output table
+
+# Show workspace details
+az ml workspace show --name <workspace-name> -g <resource-group>
+
+# List registered models
+az ml model list --workspace-name <workspace-name> -g <resource-group>
+
+# List endpoints
+az ml online-endpoint list --workspace-name <workspace-name> -g <resource-group>
+```
+
+---
+
 ## 📚 References
 
 - [MLOpsPython Template](https://github.com/microsoft/MLOpsPython)
