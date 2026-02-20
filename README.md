@@ -167,7 +167,68 @@ Push to main
 
 ---
 
-## 📈 Business Impact
+## � Microsoft Fabric Integration
+
+This solution integrates with **Microsoft Fabric** for enterprise data management:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              MICROSOFT FABRIC LAKEHOUSE                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Bronze Layer │─▶│ Silver Layer │─▶│ Gold Layer   │      │
+│  │ Raw HiX data │  │ Cleaned data │  │ ML-ready     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                              │              │
+│  OneLake: abfss://lakehouse@onelake.dfs...  │              │
+└──────────────────────────────────────────────┼──────────────┘
+                                               │
+                      Read from OneLake ───────┘
+                                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    AZURE ML WORKSPACE                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ Training Job │─▶│ Model        │─▶│ Endpoints    │      │
+│  │ (cpu-cluster)│  │ Registry     │  │ batch/online │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+└──────────────────────────────────────────────┬──────────────┘
+                                               │
+              Predictions written back ────────┘
+                                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              FABRIC LAKEHOUSE (Predictions)                 │
+│  predictions/noshow_risk/2026-02-18/predictions.parquet    │
+└──────────────────────────────────────────────┬──────────────┘
+                                               │
+                                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    POWER BI DASHBOARD                       │
+│  "Today's High-Risk Appointments" (DirectLake mode)        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Integration Points
+
+| Component | Role | Connection |
+|-----------|------|------------|
+| **Fabric Lakehouse** | Data storage | Appointments in Gold layer |
+| **Azure ML Training** | Model training | Reads from OneLake via ADLS Gen2 |
+| **Azure ML Batch** | Daily scoring | Reads/writes from OneLake |
+| **Azure ML Online** | Real-time | HiX calls API on booking |
+| **Power BI** | Visualization | DirectLake on predictions |
+
+### Cost Model
+
+| Resource | Billing | Est. Cost |
+|----------|---------|-----------|
+| `cpu-cluster` | Per job (~5 min) | ~$0.02/job |
+| Online endpoint | Always-on | ~$137/month |
+| Batch endpoint | Per batch run | ~$0.10/run |
+
+> **Tip:** Delete online endpoints when not demoing. Use batch + cpu-cluster for scheduled scoring (scales to 0 when idle).
+
+---
+
+## �📈 Business Impact
 
 | Metric | Value | Impact |
 |--------|-------|--------|
