@@ -113,8 +113,15 @@ noshow-ml-demo/
 │   ├── scaler.joblib
 │   └── metrics.json
 │
-└── notebooks/                   # Experimentation
-    └── 01_train_noshow_model.ipynb
+├── notebooks/                   # Experimentation
+│   ├── 01_train_noshow_model.ipynb
+│   └── 02_connect_fabric_onelake_demo.ipynb
+│
+└── terraform/                   # Infrastructure as Code
+    ├── main.tf                  # Azure ML + optional Fabric resources
+    ├── variables.tf             # Input variables
+    ├── outputs.tf               # Terraform outputs
+    └── terraform.tfvars.example # Sample variable values
 ```
 
 ---
@@ -215,6 +222,26 @@ This solution integrates with **Microsoft Fabric** for enterprise data managemen
 | **Azure ML Batch** | Daily scoring | Reads/writes from OneLake |
 | **Azure ML Online** | Real-time | HiX calls API on booking |
 | **Power BI** | Visualization | DirectLake on predictions |
+
+### Azure ML Notebook Connection Flow
+
+The Terraform in this repo provisions Azure ML infrastructure and can optionally create a Microsoft Fabric workspace and lakehouse when Fabric provider access is configured. If you keep Fabric creation disabled, the Fabric workspace and lakehouse must already exist before you use the notebook connection flow below.
+
+For the first integration demo step, use [notebooks/02_connect_fabric_onelake_demo.ipynb](notebooks/02_connect_fabric_onelake_demo.ipynb). It covers:
+
+1. **OneLake Datastore** — Create or update Azure ML OneLake datastores (Files and Tables) and build `azureml://datastores/.../paths/...` URIs.
+2. **Direct OneLake Reads** — Read CSV/Parquet files directly from OneLake via `azure-storage-file-datalake`.
+3. **Fabric SQL Endpoint (pyodbc)** — Connect to the lakehouse SQL analytics endpoint using ODBC Driver 18 with Azure AD token auth.
+4. **Fabric SQL Endpoint (mssql-python)** — Connect using Microsoft's new `mssql-python` driver with Entra ID auth (no ODBC Driver Manager needed).
+5. **Azure ML Connection** — Register the SQL endpoint as an Azure ML workspace connection for use in pipelines and jobs.
+
+For this repo, the recommended step-1 demo path is:
+
+1. Provision Azure ML with Terraform and populate the optional Fabric variables in [terraform/terraform.tfvars.example](terraform/terraform.tfvars.example).
+2. Use Terraform outputs to share the Azure ML workspace or compute managed identity with your Fabric admin.
+3. Grant that principal read access to the Fabric workspace or lakehouse that contains the training file.
+4. Open [notebooks/02_connect_fabric_onelake_demo.ipynb](notebooks/02_connect_fabric_onelake_demo.ipynb) to create OneLake datastores, validate direct reads, and optionally connect via SQL.
+5. Use the datastore URI or SQL connection in notebooks, jobs, or data assets.
 
 ### Cost Model
 

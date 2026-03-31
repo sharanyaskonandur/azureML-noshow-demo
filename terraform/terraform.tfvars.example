@@ -1,0 +1,36 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Do NOT commit terraform.tfvars to source control.
+
+resource_group_name  = "rg-noshow-ml-demo"
+location             = "eastus"
+prefix               = "noshow-demo"
+storage_account_name = "noshowmldemostor"    # must be globally unique, 3-24 lowercase alphanumeric
+acr_name             = "noshowmldemoregistry" # must be globally unique, 5-50 alphanumeric
+compute_vm_size      = "Standard_DS3_v2"
+compute_max_nodes    = 2
+
+# Optional: set to true to create a Fabric workspace and lakehouse.
+# Requires Fabric licensing, provider authentication, and an existing active Fabric capacity.
+fabric_create_resources          = false
+fabric_capacity_name             = "skfabric"
+fabric_workspace_display_name    = "noshow fabric workspace"
+fabric_workspace_description     = "Fabric workspace for the no-show ML demo"
+fabric_lakehouse_display_name    = "noshow_fabric_lakehouse"
+fabric_lakehouse_description     = "Lakehouse for the no-show ML demo"
+fabric_lakehouse_enable_schemas  = true
+
+# Optional: existing Fabric / OneLake connection details for notebook-based training.
+# Use these when fabric_create_resources = false.
+# Prefer GUIDs when the workspace or lakehouse name contains spaces.
+fabric_workspace_name = null
+fabric_workspace_id   = null
+fabric_lakehouse_name = null
+fabric_lakehouse_id   = null
+fabric_data_path      = "Files/noshow/KaggleV2-May-2016.csv"
+# fabric_onelake_endpoint = "westeurope-onelake.dfs.fabric.microsoft.com"
+
+tags = {
+  project     = "noshow-ml-demo"
+  environment = "dev"
+  managed_by  = "terraform"
+}

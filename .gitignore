@@ -48,6 +48,14 @@ mlruns/
 # Data files (too large for git)
 *.parquet
 *.csv
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
 !data/*_sample.csv
 
 # Credentials and secrets
