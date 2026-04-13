@@ -57,27 +57,7 @@ def sample_dataframe():
 
 
 @pytest.fixture
-def processed_dataframe(sample_dataframe):
-    """Create processed dataframe with engineered features."""
-    df = sample_dataframe.copy()
-    
-    # Same processing as load_data
-    df.columns = df.columns.str.lower().str.replace('-', '_')
-    df['scheduledday'] = pd.to_datetime(df['scheduledday'])
-    df['appointmentday'] = pd.to_datetime(df['appointmentday'])
-    df['lead_time_days'] = (df['appointmentday'] - df['scheduledday']).dt.days
-    df['lead_time_days'] = df['lead_time_days'].clip(lower=0)
-    df['day_of_week'] = df['appointmentday'].dt.dayofweek
-    df['hour_of_day'] = df['scheduledday'].dt.hour
-    df['chronic_conditions'] = (
-        df['hipertension'].astype(int) +
-        df['diabetes'].astype(int) +
-        df['alcoholism'].astype(int)
-    )
-    df['no_show'] = (df['no_show'] == 'Yes').astype(int)
-    df['age'] = df['age'].clip(lower=0, upper=115)
-    
-    return df
+#Delete this test
 
 
 @pytest.fixture
