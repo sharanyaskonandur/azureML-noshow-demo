@@ -343,3 +343,5 @@ az ml online-endpoint list --workspace-name <workspace-name> -g <resource-group>
 - [MLOpsPython Template](https://github.com/microsoft/MLOpsPython)
 - [Azure ML Documentation](https://learn.microsoft.com/azure/machine-learning/)
 - [Kaggle No-Show Dataset](https://www.kaggle.com/datasets/joniarroba/noshowappointments)
+
+<!-- SRE Agent test change - 2026-10-02T14:25:43Z -->
